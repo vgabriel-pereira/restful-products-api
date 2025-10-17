@@ -4,6 +4,8 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const mongoose = require('mongoose')
 
+const cadastroRouter = require('./routes/cadastroRoutes')
+
 const app = express();
 
 const url = `mongodb+srv://${process.env.DATABASE_USER}:${process.env.DATABASE_PSWD}@${process.env.DATABASE_HOST}/${process.env.DATABASE_DBNAME}`;
@@ -15,5 +17,7 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+app.use('/cadastro', cadastroRouter)
 
 module.exports = app;
