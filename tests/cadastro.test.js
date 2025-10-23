@@ -4,8 +4,6 @@ const request = supertest(app)
 
 const url = '/cadastro'
 
-const random = Date.now()
-
 
 describe("Teste funcionalidade /cadastro", () => {
     test("Teste POST 201", async () => {
