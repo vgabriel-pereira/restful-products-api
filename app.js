@@ -5,6 +5,7 @@ const logger = require('morgan');
 const mongoose = require('mongoose')
 
 const cadastroRouter = require('./routes/cadastroRoutes')
+const loginRouter = require('./routes/loginRoutes')
 
 const app = express();
 
@@ -19,5 +20,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 app.use('/cadastro', cadastroRouter)
+app.use('/login', loginRouter)
 
 module.exports = app;
