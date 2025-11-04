@@ -1,25 +1,25 @@
 const bcrypt = require('bcrypt')
-const mongoose = require('mongoose')
-const user = require('../models/userModels')
+const User = require('../models/userModels')
 
 async function cadastro(req, res) {
     try {
-        console.log('REQ BODY:', req.body)
-        const { nome, email, password } = req.body
+        const { name, email, password } = req.body
 
-        if (!nome || !email || !password) return res.status(400).json({msg: 'Campos obrigatórios faltando' })
+        if (!name || !email || !password) return res.status(400).json({ success: false, msg: 'Campos obrigatórios faltando' })
 
         const salt = await bcrypt.genSalt(10)
         const hashPassword = await bcrypt.hash(password, salt)
-        const novoUsuario = await user.create({ nome: nome, email: email, password: hashPassword })
+        const novoUsuario = await User.create({ name: name, email: email, password: hashPassword })
+
+        // garantir que a senha não seja retornada
         const { password: _, ...usuarioSemSenha } = novoUsuario.toObject()
-        return res.status(201).json(usuarioSemSenha)
+        return res.status(201).json({ success: true, msg: 'Usuário criado', data: usuarioSemSenha })
     } catch (err) {
-        console.error(err)
+        console.error('Cadastro error:', err)
         if (err.code === 11000 && err.keyPattern && err.keyPattern.email) {
-            return res.status(409).json({ msg: "Email já cadastrado" });
+            return res.status(409).json({ success: false, msg: "Email já cadastrado" });
         }
-        return res.status(500).json({msg: "Erro ao criar usuário" })
+        return res.status(500).json({ success: false, msg: "Erro ao criar usuário" })
     }
 }
 

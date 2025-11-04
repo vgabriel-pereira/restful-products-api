@@ -1,26 +1,46 @@
-const mongoose = require('mongoose')
-const Users = require('../models/userModels')
+const User = require('../models/userModels')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken') 
 
 async function login(req, res) {
     try {
         const { email, password } = req.body
 
-        if (!email || !password) return res.status(422).json({ msg: "Usuario/Senha são obrigatórios" })
+        if (!email || !password) return res.status(422).json({ success: false, msg: "Usuario/Senha são obrigatórios" })
 
-        const user = await Users.findOne({ email: email })
-        if (!user) return res.status(401).json({ msg: "Usuario ou Senha Invalido" })
+        const user = await Users.findOne({ email: email }).select('+password')
+        if (!user) return res.status(401).json({ success: false, msg: "Credenciais inválidas" })
 
         const isMatch = await bcrypt.compare(password, user.password)
-        if (!isMatch || !user) return res.status(401).json({ msg: "Usuario ou Senha Invalido" })
+        if (!isMatch) return res.status(401).json({ success: false, msg: "Credenciais inválidas" })
 
-        return res.status(200).json({ msg: "Logado com sucesso" })
+        const userPayload = {
+            id: user._id,
+            name: user.name,
+            email: user.email
+        }
+
+        const secret = process.env.JWT_SECRET
+        if (!secret) {
+            console.error('Login error: JWT_SECRET não definido no ambiente')
+            return res.status(500).json({ success: false, message: 'Configuração do servidor incorreta' })
+        }
+
+        const token = jwt.sign(userPayload, secret, { expiresIn: '1h' })
+
+        res.set('Authorization', `Bearer ${token}`)
+
+        return res.status(200).json({
+            success: true,
+            message: "Logado com sucesso",
+            data: {
+                user: userPayload,
+                token: token
+            }
+        })
     } catch (err) {
-        if (err.errors)
-            return res
-                .status(422)
-                .json({ msg: "Nome e preço do produto são obrigatórios" });
-        return res.status(500).json({ msg: "Erro interno do servidor" });
+        console.error('Login error:', err)
+        return res.status(500).json({ success: false, message: "Erro interno do servidor" });
     }
 }
 
