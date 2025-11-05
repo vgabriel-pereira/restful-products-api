@@ -6,6 +6,9 @@ const mongoose = require('mongoose')
 
 const cadastroRouter = require('./routes/cadastroRoutes')
 const loginRouter = require('./routes/loginRoutes')
+const productRouter = require('./routes/productRoutes');
+
+const authenticate = require('./middlewares/auth');
 
 const app = express();
 
@@ -21,5 +24,6 @@ app.use(cookieParser());
 
 app.use('/cadastro', cadastroRouter)
 app.use('/login', loginRouter)
+app.use('/produtos',  productRouter);
 
 module.exports = app;
