@@ -1,31 +1,37 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/userModels');
 
-// /middlewares/auth.js
+module.exports = async function auth(req, res, next) {
+    const secret = process.env.JWT_SECRET
+    if (!secret) {
+        console.error('Auth error: JWT_SECRET não definido no ambiente')
+        return res.status(500).json({ success: false, message: 'Configuração do servidor incorreta' })
+    }
 
-/**
- * Middleware de autenticação JWT para Express.
- * Usa process.env.JWT_SECRET como segredo.
- * Aceita token em:
- *  - header Authorization: "Bearer <token>"
- *  - req.cookies.token (se cookie-parser estiver configurado)
- */
-module.exports = function auth(req, res, next) {
-    const authHeader = req.headers.authorization || '';
-    const cookieToken = req.cookies && req.cookies.token;
+    const authHeader = req.headers.authorization
     const token = authHeader.startsWith('Bearer ')
         ? authHeader.slice(7).trim()
-        : (authHeader || cookieToken);
+        : authHeader
 
     if (!token) {
-        return res.status(401).json({ error: 'Token não fornecido' });
+        return res.status(401).json({ success: false, error: 'Token não fornecido' })
     }
 
     try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET);
-        // anexar dados do usuário/claim ao req
-        req.user = payload;
-        next();
+        const payload = jwt.verify(token, secret)
+
+        if (!payload || !payload.id) {
+            return res.status(401).json({ success: false, error: 'Token inválido' })
+        }
+        const user = await User.findById(payload.id).select('-password')
+        if (!user) {
+            return res.status(401).json({ success: false, error: 'Usuário não encontrado' })
+        }
+
+        req.user = user
+        next()
     } catch (err) {
-        return res.status(401).json({ error: 'Token inválido ou expirado' });
+        console.error('Auth verify error:', err.message || err)
+        return res.status(401).json({ success: false, error: 'Token inválido ou expirado' })
     }
 };

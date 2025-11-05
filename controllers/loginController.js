@@ -1,6 +1,6 @@
 const User = require('../models/userModels')
 const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken') 
+const jwt = require('jsonwebtoken')
 
 async function login(req, res) {
     try {
@@ -8,11 +8,11 @@ async function login(req, res) {
 
         if (!email || !password) return res.status(422).json({ success: false, msg: "Usuario/Senha são obrigatórios" })
 
-        const user = await Users.findOne({ email: email }).select('+password')
-        if (!user) return res.status(401).json({ success: false, msg: "Credenciais inválidas" })
+        const user = await User.findOne({ email: email }).select('+password')
+        if (!user) return res.status(401).json({ success: false, msg: "Usuario ou Senha Invalido" })
 
         const isMatch = await bcrypt.compare(password, user.password)
-        if (!isMatch) return res.status(401).json({ success: false, msg: "Credenciais inválidas" })
+        if (!isMatch) return res.status(401).json({ success: false, msg: "Usuario ou Senha Invalido" })
 
         const userPayload = {
             id: user._id,
@@ -33,9 +33,9 @@ async function login(req, res) {
         return res.status(200).json({
             success: true,
             message: "Logado com sucesso",
+            token: token,
             data: {
                 user: userPayload,
-                token: token
             }
         })
     } catch (err) {

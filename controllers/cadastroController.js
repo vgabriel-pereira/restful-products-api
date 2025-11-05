@@ -11,7 +11,6 @@ async function cadastro(req, res) {
         const hashPassword = await bcrypt.hash(password, salt)
         const novoUsuario = await User.create({ name: name, email: email, password: hashPassword })
 
-        // garantir que a senha não seja retornada
         const { password: _, ...usuarioSemSenha } = novoUsuario.toObject()
         return res.status(201).json({ success: true, msg: 'Usuário criado', data: usuarioSemSenha })
     } catch (err) {
