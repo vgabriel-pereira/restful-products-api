@@ -8,7 +8,7 @@ module.exports = async function auth(req, res, next) {
         return res.status(500).json({ success: false, message: 'Configuração do servidor incorreta' })
     }
 
-    const authHeader = req.headers.authorization
+    const authHeader = req.headers.authorization 
     const token = authHeader.startsWith('Bearer ')
         ? authHeader.slice(7).trim()
         : authHeader
