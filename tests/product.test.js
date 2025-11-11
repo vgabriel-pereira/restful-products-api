@@ -2,13 +2,13 @@ const supertest = require('supertest')
 const app = require('../app')
 const request = supertest(app)
 
-const url = '/produtos'
+const url = '/api/v1/products'
 
 
 const makeProduct = (overrides = {}) => ({
 	name: `Produto ${Date.now()}`,
 	price: 10.0,
-    description: "Descrição do produto",
+	description: "Descrição do produto",
 	...overrides
 })
 
@@ -81,26 +81,47 @@ describe("Teste rota /produtos", () => {
 		expect(response.body.msg).toBe("Nome e preço do produto são obrigatórios")
 	})
 
-    test("GET /produtos retorna 200", async () => {
-        const response = await request.get(url)
-        expect(response.status).toBe(200)
-        expect(response.headers["content-type"]).toMatch(/json/)
+	test("GET /produtos retorna 200", async () => {
+		const response = await request.get(url)
+		expect(response.status).toBe(200)
+		expect(response.headers["content-type"]).toMatch(/json/)
 
-        expect(Array.isArray(response.body)).toBe(true)
-        expect(response.body.length).toBeGreaterThanOrEqual(1)
+		expect(Array.isArray(response.body)).toBe(true)
+		expect(response.body.length).toBeGreaterThanOrEqual(1)
 
-        response.body.forEach(item => {
-            expect(item).toHaveProperty('_id')
-            expect(item).toHaveProperty('name')
-            expect(item).toHaveProperty('price')
-            expect(typeof item.price).toBe('number')
-        })
+		response.body.forEach(item => {
+			expect(item).toHaveProperty('_id')
+			expect(item).toHaveProperty('name')
+			expect(item).toHaveProperty('price')
+			expect(typeof item.price).toBe('number')
+		})
 
-        if (id) {
-            const found = response.body.find(p => p._id === id)
-            expect(found).toBeDefined()
-            expect(found.name).toBeDefined()
-            expect(typeof found.price).toBe('number')
-        }
-    })
+		if (id) {
+			const found = response.body.find(p => p._id === id)
+			expect(found).toBeDefined()
+			expect(found.name).toBeDefined()
+			expect(typeof found.price).toBe('number')
+		}
+	})
+
+	test("GET /produtos/id retorna 200", async () => {
+		const response = await request.get(`${url}/${id}`)
+		expect(response.status).toBe(200)
+		expect(response.headers["content-type"]).toMatch(/json/);
+		expect(response.body._id).toBe(id)
+		expect(response.body.price).toBe(10)
+
+	})
+	test("GET /produtos/0 retorna 400", async () => {
+		const response = await request.get(`${url}/0`)
+		expect(response.status).toBe(400)
+		expect(response.headers["content-type"]).toMatch(/json/);
+		expect(response.body.msg).toBe("Parâmetro inválido")
+	})
+	test("GET /produtos/id retorna 404", async () => {
+		const response = await request.get(`${url}/000000000000000000000000`)
+		expect(response.status).toBe(404)
+		expect(response.headers["content-type"]).toMatch(/json/);
+		expect(response.body.msg).toBe("Produto não encontrado")
+	})
 })

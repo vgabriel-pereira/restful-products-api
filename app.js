@@ -24,6 +24,6 @@ app.use(cookieParser());
 
 app.use('/cadastro', cadastroRouter)
 app.use('/login', loginRouter)
-app.use('/produtos',  productRouter);
+app.use('/api/v1/products',  productRouter);
 
 module.exports = app;
