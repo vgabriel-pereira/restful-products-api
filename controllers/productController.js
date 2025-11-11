@@ -1,3 +1,4 @@
+const { mongo } = require('mongoose');
 const Product = require('../models/productModel');
 
 async function createProduct(req, res) {
@@ -26,7 +27,26 @@ async function getProducts(req, res) {
     }
 }
 
+async function getProductById(req, res) {
+    try {
+        const { id } = req.params;
+        if (!mongo.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, msg: "Parâmetro inválido" });
+        }
+        const product = await Product.findOne({ _id: id });
+        if (!product) {
+            return res.status(404).json({msg: "Produto não encontrado" });
+        }
+        return res.status(200).json(product);
+
+    } catch (err) {
+        console.error('Get product by ID error:', err)
+        return res.status(500).json({ success: false, msg: "Erro interno do servidor" });
+    }
+}
+
 module.exports = {
     createProduct,
-    getProducts
+    getProducts,
+    getProductById
 };
