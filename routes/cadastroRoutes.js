@@ -5,4 +5,6 @@ const router = express.Router()
 
 router.post('/', controller.cadastro)
 
+
+
 module.exports = router

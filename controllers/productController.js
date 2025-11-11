@@ -1,6 +1,6 @@
 const Product = require('../models/productModel');
 
-const createProduct = async (req, res) => {
+async function createProduct(req, res) {
     try {
         const { name, price, description } = req.body;
         if (!name || !price || !description) {
@@ -14,8 +14,19 @@ const createProduct = async (req, res) => {
         console.error('Create product error:', err)
         return res.status(500).json({ success: false, msg: "Erro interno do servidor" });
     }
-};
+}
+
+async function getProducts(req, res) {
+    try {
+        const products = await Product.find();
+        return res.status(200).json(products);
+    } catch (err) {
+        console.error('Get products error:', err)
+        return res.status(500).json({ success: false, msg: "Erro interno do servidor" });
+    }
+}
 
 module.exports = {
-    createProduct
+    createProduct,
+    getProducts
 };

@@ -80,4 +80,27 @@ describe("Teste rota /produtos", () => {
 		expect(response.headers["content-type"]).toMatch(/json/)
 		expect(response.body.msg).toBe("Nome e preço do produto são obrigatórios")
 	})
+
+    test("GET /produtos retorna 200", async () => {
+        const response = await request.get(url)
+        expect(response.status).toBe(200)
+        expect(response.headers["content-type"]).toMatch(/json/)
+
+        expect(Array.isArray(response.body)).toBe(true)
+        expect(response.body.length).toBeGreaterThanOrEqual(1)
+
+        response.body.forEach(item => {
+            expect(item).toHaveProperty('_id')
+            expect(item).toHaveProperty('name')
+            expect(item).toHaveProperty('price')
+            expect(typeof item.price).toBe('number')
+        })
+
+        if (id) {
+            const found = response.body.find(p => p._id === id)
+            expect(found).toBeDefined()
+            expect(found.name).toBeDefined()
+            expect(typeof found.price).toBe('number')
+        }
+    })
 })
