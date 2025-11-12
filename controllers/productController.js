@@ -65,9 +65,21 @@ async function updateProduct(req, res) {
     }
 }
 
+async function deleteProduct(req, res) {
+    try {
+        const { id } = req.params;
+        await Product.deleteOne({ _id: id });
+        return res.status(204).send();
+    } catch (err) {
+        console.error('Delete product error:', err);
+        return res.status(500).json({ success: false, msg: "Erro interno do servidor" });
+    }
+}
+
 module.exports = {
     createProduct,
     getProducts,
     getProductById,
-    updateProduct
+    updateProduct,
+    deleteProduct
 };

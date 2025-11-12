@@ -13,7 +13,7 @@ module.exports = async function auth(req, res, next) {
     if (!authHeader) {
         return res.status(401).json({ success: false, error: 'Token não fornecido' })
     }
-    
+
     const token = authHeader.startsWith('Bearer ')
         ? authHeader.slice(7).trim()
         : authHeader
@@ -39,4 +39,5 @@ module.exports = async function auth(req, res, next) {
         console.error('Auth verify error:', err.message || err)
         return res.status(401).json({ success: false, error: 'Token inválido ou expirado' })
     }
+    
 };
