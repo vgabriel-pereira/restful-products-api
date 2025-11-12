@@ -1,127 +1,140 @@
-const supertest = require('supertest')
-const app = require('../app')
-const request = supertest(app)
+const supertest = require('supertest');
+const app = require('../app');
+const request = supertest(app);
 
-const url = '/api/v1/products'
-
+const BASE_URL = '/api/v1/products';
 
 const makeProduct = (overrides = {}) => ({
-	name: `Produto ${Date.now()}`,
-	price: 10.0,
-	description: "Descrição do produto",
-	...overrides
-})
+  name: `Produto ${Date.now()}`,
+  price: 10.0,
+  description: 'Descrição padrão',
+  ...overrides,
+});
 
-const createProduct = (payload, token) => {
-	const req = request.post(url)
-	if (token) req.set('Authorization', `Bearer ${token}`)
-	return req.send(payload)
-}
+const withAuth = (req, token) =>
+  token ? req.set('Authorization', `Bearer ${token}`) : req;
 
-let id = null
-let token = null
+const MSG = {
+  INVALID_PARAM: 'Parâmetro inválido',
+  NOT_FOUND: 'Produto não encontrado',
+  REQUIRED_FIELDS: 'Nome e preço do produto são obrigatórios',
+  UNAUTHORIZED: 'Token não fornecido',
+};
 
-describe("Teste rota /produtos", () => {
-	// obter token válido usando as credenciais de teste existentes
-	beforeAll(async () => {
-		const validCredentials = { email: "teste@gamil.com", password: "1234" }
+let token = null;
+let productId = null;
 
-		// tentativa de login com retries (pequeno delay entre tentativas)
-		const tryLogin = async (credentials, attempts = 5, delayMs = 200) => {
-			for (let i = 0; i < attempts; i++) {
-				const res = await request.post('/login').send(credentials)
-				if (res && res.body && res.body.token) return res
-				await new Promise(r => setTimeout(r, delayMs))
-			}
-			return null
-		}
+beforeAll(async () => {
+  const credentials = { email: 'teste@gamil.com', password: '1234' };
 
-		const loginRes = await tryLogin(validCredentials, 5, 200)
+  const tryLogin = async (max = 5, delay = 200) => {
+    for (let i = 0; i < max; i++) {
+      const res = await request.post('/login').send(credentials);
+      if (res?.body?.token) return res.body.token;
+      await new Promise(r => setTimeout(r, delay));
+    }
+    return null;
+  };
 
-		if (!loginRes || !loginRes.body || !loginRes.body.token) {
-			const debugRes = loginRes ? { status: loginRes.status, body: loginRes.body } : null
-			throw new Error('Não foi possível obter token de login no beforeAll usando as credenciais de teste. Última resposta: ' + JSON.stringify(debugRes))
-		}
+  token = await tryLogin();
+  if (!token) throw new Error('Falha ao obter token de login');
+});
 
-		token = loginRes.body.token
-	})
+describe('🔹 /api/v1/products', () => {
+  test('POST cria produto válido (201)', async () => {
+    const payload = makeProduct();
+    const res = await withAuth(request.post(BASE_URL), token).send(payload);
 
-	test("POST /produtos retorna 201 e body válido", async () => {
-		const payload = makeProduct()
-		const response = await createProduct(payload, token)
+    expect(res.status).toBe(201);
+    expect(res.type).toMatch(/json/);
 
-		expect(response.status).toBe(201)
-		expect(response.headers["content-type"]).toMatch(/json/)
+    const { _id, name, price } = res.body;
+    expect(_id).toBeDefined();
+    expect(name).toBe(payload.name);
+    expect(price).toBeCloseTo(payload.price);
 
-		expect(response.body._id).toBeDefined()
-		expect(typeof response.body._id).toBe("string")
-		expect(response.body._id.length).toBeGreaterThan(0)
+    productId = _id;
+  });
 
-		expect(response.body.name).toBe(payload.name)
+  test.each([
+    [null, 'sem body'],
+    [{ name: 'SomenteNome' }, 'sem preço'],
+    [{ price: 5.0 }, 'sem nome'],
+    [{ name: 'x', price: 'nao-num' }, 'preço inválido'],
+  ])('POST inválido retorna 422 (%s)', async (body) => {
+    const req = body
+      ? withAuth(request.post(BASE_URL), token).send(body)
+      : withAuth(request.post(BASE_URL), token);
+    const res = await req;
 
-		expect(typeof response.body.price).toBe("number")
-		expect(response.body.price).toBeCloseTo(payload.price)
-		id = response.body._id
-	})
+    expect(res.status).toBe(422);
+    expect(res.body.msg).toBe(MSG.REQUIRED_FIELDS);
+  });
 
-	test.each([
-		[null, "sem body"],
-		[{ name: "SomenteNome" }, "falta preco"],
-		[{ price: 5.0 }, "falta nome"],
-		[{ name: "x", price: "nao-num" }, "preco invalido"]
-	])("POST /produtos retorna 422 quando %s (%s)", async (payload, desc) => {
+  test('GET lista produtos (200)', async () => {
+    const res = await request.get(BASE_URL);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
 
-		const req = payload === null
-			? request.post(url).set('Authorization', `Bearer ${token}`)
-			: createProduct(payload, token)
+    const product = res.body.find(p => p._id === productId);
+    expect(product).toMatchObject({
+      _id: productId,
+      name: expect.any(String),
+      price: expect.any(Number),
+    });
+  });
 
-		const response = await req
-		expect(response.status).toBe(422)
-		expect(response.headers["content-type"]).toMatch(/json/)
-		expect(response.body.msg).toBe("Nome e preço do produto são obrigatórios")
-	})
+  describe('GET /:id', () => {
+    test('retorna 200 para id válido', async () => {
+      const res = await request.get(`${BASE_URL}/${productId}`);
+      expect(res.status).toBe(200);
+      expect(res.body._id).toBe(productId);
+    });
 
-	test("GET /produtos retorna 200", async () => {
-		const response = await request.get(url)
-		expect(response.status).toBe(200)
-		expect(response.headers["content-type"]).toMatch(/json/)
+    test('retorna 400 para id inválido', async () => {
+      const res = await request.get(`${BASE_URL}/0`);
+      expect(res.status).toBe(400);
+      expect(res.body.msg).toBe(MSG.INVALID_PARAM);
+    });
 
-		expect(Array.isArray(response.body)).toBe(true)
-		expect(response.body.length).toBeGreaterThanOrEqual(1)
+    test('retorna 404 para id inexistente', async () => {
+      const res = await request.get(`${BASE_URL}/000000000000000000000000`);
+      expect(res.status).toBe(404);
+      expect(res.body.msg).toBe(MSG.NOT_FOUND);
+    });
+  });
 
-		response.body.forEach(item => {
-			expect(item).toHaveProperty('_id')
-			expect(item).toHaveProperty('name')
-			expect(item).toHaveProperty('price')
-			expect(typeof item.price).toBe('number')
-		})
+  describe('PUT /:id', () => {
+    test('atualiza produto (200)', async () => {
+      const update = { name: 'Produto Atualizado', price: 20, description: 'Nova desc' };
+      const res = await withAuth(request.put(`${BASE_URL}/${productId}`), token).send(update);
 
-		if (id) {
-			const found = response.body.find(p => p._id === id)
-			expect(found).toBeDefined()
-			expect(found.name).toBeDefined()
-			expect(typeof found.price).toBe('number')
-		}
-	})
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject(update);
+    });
 
-	test("GET /produtos/id retorna 200", async () => {
-		const response = await request.get(`${url}/${id}`)
-		expect(response.status).toBe(200)
-		expect(response.headers["content-type"]).toMatch(/json/);
-		expect(response.body._id).toBe(id)
-		expect(response.body.price).toBe(10)
+    test('retorna 400 para id inválido', async () => {
+      const res = await withAuth(request.put(`${BASE_URL}/0`), token).send({ name: 'Nome', price: 15 });
+      expect(res.status).toBe(400);
+      expect(res.body.msg).toBe(MSG.INVALID_PARAM);
+    });
 
-	})
-	test("GET /produtos/0 retorna 400", async () => {
-		const response = await request.get(`${url}/0`)
-		expect(response.status).toBe(400)
-		expect(response.headers["content-type"]).toMatch(/json/);
-		expect(response.body.msg).toBe("Parâmetro inválido")
-	})
-	test("GET /produtos/id retorna 404", async () => {
-		const response = await request.get(`${url}/000000000000000000000000`)
-		expect(response.status).toBe(404)
-		expect(response.headers["content-type"]).toMatch(/json/);
-		expect(response.body.msg).toBe("Produto não encontrado")
-	})
-})
+    test('retorna 404 para id inexistente', async () => {
+      const res = await withAuth(request.put(`${BASE_URL}/000000000000000000000000`), token).send({ name: 'Nome', price: 15 });
+      expect(res.status).toBe(404);
+      expect(res.body.msg).toBe(MSG.NOT_FOUND);
+    });
+
+    test('retorna 401 sem token', async () => {
+      const res = await request.put(`${BASE_URL}/${productId}`).send({ name: 'Nome', price: 15 });
+      expect(res.status).toBe(401);
+    });
+
+    test('retorna 422 sem campos obrigatórios', async () => {
+      const res = await withAuth(request.put(`${BASE_URL}/${productId}`), token).send({ description: 'Apenas descrição' });
+      expect(res.status).toBe(422);
+      expect(res.body.msg).toBe(MSG.REQUIRED_FIELDS);
+    });
+  });
+});

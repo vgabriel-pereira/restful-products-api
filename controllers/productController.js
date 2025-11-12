@@ -30,13 +30,7 @@ async function getProducts(req, res) {
 async function getProductById(req, res) {
     try {
         const { id } = req.params;
-        if (!mongo.ObjectId.isValid(id)) {
-            return res.status(400).json({ success: false, msg: "Parâmetro inválido" });
-        }
         const product = await Product.findOne({ _id: id });
-        if (!product) {
-            return res.status(404).json({msg: "Produto não encontrado" });
-        }
         return res.status(200).json(product);
 
     } catch (err) {
@@ -45,8 +39,35 @@ async function getProductById(req, res) {
     }
 }
 
+async function updateProduct(req, res) {
+    try {
+        const { id } = req.params;
+        const { name, price, description } = req.body;
+
+        if (!name || !price) {
+            return res.status(422).json({ msg: "Nome e preço do produto são obrigatórios" });
+        }
+
+        const product = await Product.findOneAndUpdate(
+            { _id: id },
+            { name, price, description },
+            { new: true }
+        );
+
+        return res.status(200).json(product);
+
+    } catch (err) {
+        if (err instanceof mongo.MongoError && err.code === 11000) {
+            return res.status(409).json({ success: false, msg: "Conflito de dados ao atualizar o produto" });
+        }
+        console.error('Update product error:', err);
+        return res.status(500).json({ success: false, msg: "Erro interno do servidor" });
+    }
+}
+
 module.exports = {
     createProduct,
     getProducts,
-    getProductById
+    getProductById,
+    updateProduct
 };
