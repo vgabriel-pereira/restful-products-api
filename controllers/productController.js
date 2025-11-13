@@ -44,6 +44,8 @@ async function updateProduct(req, res) {
         const { id } = req.params;
         const { name, price, description } = req.body;
 
+        
+
         if (!name || !price) {
             return res.status(422).json({ msg: "Nome e preço do produto são obrigatórios" });
         }

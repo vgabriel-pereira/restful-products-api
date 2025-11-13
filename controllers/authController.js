@@ -53,7 +53,7 @@ async function login(req, res) {
             id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role || 'user',
+            roles: user.roles,
             iat: Math.floor(Date.now() / 1000)
         };
 
