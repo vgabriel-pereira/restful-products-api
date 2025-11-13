@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModels');
 
-module.exports = async function auth(req, res, next) {
+async function auth(req, res, next) {
     const secret = process.env.JWT_SECRET
     if (!secret) {
         console.error('Auth error: JWT_SECRET não definido no ambiente')
@@ -41,3 +41,5 @@ module.exports = async function auth(req, res, next) {
     }
     
 };
+
+module.exports = auth;

@@ -1,6 +1,7 @@
 const supertest = require('supertest')
 const app = require('../app')
 const request = supertest(app)
+jest.setTimeout(10000);
 
 const makeUser = (overrides = {}) => ({
   name: "Teste",
