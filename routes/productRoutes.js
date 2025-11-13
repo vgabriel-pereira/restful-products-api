@@ -2,7 +2,7 @@ const express = require('express');
 const productController = require('../controllers/productController');
 const auth = require('../middlewares/auth');
 const router = express.Router();
-const validateId = require('../middlewares/validateId');
+const validateId = require('../middlewares/validateIdProduct');
 
 router.post('/', auth, productController.createProduct);
 

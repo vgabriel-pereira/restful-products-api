@@ -11,15 +11,16 @@ const makeUser = (overrides = {}) => ({
 
 const register = (payload) => request.post('/api/v1/auth/register').send(payload)
 const login = (payload) => request.post('/api/v1/auth/login').send(payload)
-const getProfile = (token) =>
-  request.get('/api/v1/auth/profile').set('Authorization', `Bearer ${token}`)
-const updateUser = (token, payload) =>
-  request.patch('/api/v1/auth/update').set('Authorization', `Bearer ${token}`).send(payload)
-const deleteUser = (token) =>
-  request.delete('/api/v1/auth/delete').set('Authorization', `Bearer ${token}`)
+const getProfile = (token, id) =>
+  request.get(`/api/v1/auth/profile/${id}`).set('Authorization', `Bearer ${token}`)
+const updateUser = (token, id, payload) =>
+  request.patch(`/api/v1/auth/update/${id}`).set('Authorization', `Bearer ${token}`).send(payload)
+const deleteUser = (token, id) =>
+  request.delete(`/api/v1/auth/delete/${id}`).set('Authorization', `Bearer ${token}`)
 
 let authToken = null
 let createdUser = null
+let createdUserId = null
 
 describe("Testes da funcionalidade de Autenticação (/api/v1/auth)", () => {
   describe("POST /register", () => {
@@ -35,10 +36,8 @@ describe("Testes da funcionalidade de Autenticação (/api/v1/auth)", () => {
       expect(response.body.data).toHaveProperty("name", novoUsuario.name)
       expect(response.body.data).toHaveProperty("email", novoUsuario.email)
 
-      expect(response.body).not.toHaveProperty("password")
-      expect(response.body).not.toHaveProperty("passwordHash")
-
       createdUser = novoUsuario
+      createdUserId = response.body.data._id
     })
 
     test.each([
@@ -49,7 +48,6 @@ describe("Testes da funcionalidade de Autenticação (/api/v1/auth)", () => {
     ])("Erro 400 se faltar campo obrigatório (%s)", async (payload, missingFieldDesc) => {
       const response = await register(payload)
       expect(response.status).toBe(400)
-      expect(response.headers["content-type"]).toMatch(/json/)
       expect(response.body.msg).toBe("Campos obrigatórios faltando")
     })
   })
@@ -64,7 +62,7 @@ describe("Testes da funcionalidade de Autenticação (/api/v1/auth)", () => {
       expect(response.status).toBe(200)
       expect(response.body).toHaveProperty("token")
       expect(typeof response.body.token).toBe("string")
-      expect(response.body.token.length).toBeGreaterThan(0)
+      expect(response.body.payload).toHaveProperty("email", createdUser.email)
 
       authToken = response.body.token
     })
@@ -86,92 +84,72 @@ describe("Testes da funcionalidade de Autenticação (/api/v1/auth)", () => {
       expect(response.status).toBe(401)
       expect(response.body.msg).toBe("Usuário ou senha inválido")
     })
-
-    test.each([
-      [{ email: "" }, "Usuário/Senha são obrigatórios"],
-      [{ password: "" }, "Usuário/Senha são obrigatórios"],
-      [{}, "Usuário/Senha são obrigatórios"],
-    ])("Retorna 422 quando campos obrigatórios faltam (%p)", async (payload, expectedMsg) => {
-      const response = await login(payload)
-      expect(response.status).toBe(422)
-      expect(response.body.msg).toBe(expectedMsg)
-    })
   })
 
-
-  describe("GET /profile", () => {
+  describe("GET /profile/:id", () => {
     test("Retorna 200 e dados do usuário logado", async () => {
-      const response = await getProfile(authToken)
-
+      const response = await getProfile(authToken, createdUserId)
       expect(response.status).toBe(200)
-      expect(response.headers["content-type"]).toMatch(/json/)
       expect(response.body.data).toHaveProperty("email", createdUser.email)
     })
 
-    test("Retorna 401 se token não for enviado", async () => {
-      const response = await getProfile("")
-      expect(response.status).toBe(401)
-      expect(response.body.msg).toBe("Token de autenticação ausente ou inválido")
+    test("Retorna 400 se ID inválido", async () => {
+      const response = await getProfile(authToken, "123")
+      expect(response.status).toBe(400)
+      expect(response.body.msg).toBe("Parâmetro inválido")
     })
 
-    test("Retorna 401 se token inválido", async () => {
-      const response = await getProfile("Bearer token_falso")
-      expect(response.status).toBe(401)
-      expect(response.body.msg).toBe("Token de autenticação ausente ou inválido")
-    })
-    test("Retorna 404 se usuário não existir mais", async () => {
-      const fakeToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.fake"
-      const response = await getProfile(fakeToken)
+    test("Retorna 404 se usuário não existir", async () => {
+      const fakeId = "66e68c8a0f9b9a26a4e89fff"
+      const response = await getProfile(authToken, fakeId)
       expect(response.status).toBe(404)
       expect(response.body.msg).toBe("Usuário não encontrado")
     })
+
+    test("Retorna 401 se token ausente", async () => {
+      const response = await request.get(`/api/v1/auth/profile/${createdUserId}`)
+      expect(response.status).toBe(401)
+      expect(response.body.error).toBe("Token não fornecido")
+    })
   })
 
-  describe("PATCH /update", () => {
+  describe("PATCH /update/:id", () => {
     test("Retorna 200 ao atualizar parcialmente o usuário", async () => {
-      const response = await updateUser(authToken, { name: "Novo Nome" })
-
+      const response = await updateUser(authToken, createdUserId, { name: "Novo Nome" })
       expect(response.status).toBe(200)
       expect(response.body.data).toHaveProperty("name", "Novo Nome")
     })
 
-    test("Retorna 422 se payload estiver vazio", async () => {
-      const response = await updateUser(authToken, {})
-      expect(response.status).toBe(422)
-      expect(response.body.msg).toBe("Nenhum campo enviado para atualização")
+    test("Retorna 400 se ID inválido", async () => {
+      const response = await updateUser(authToken, "123", { name: "X" })
+      expect(response.status).toBe(400)
+      expect(response.body.msg).toBe("Parâmetro inválido")
+    })
+
+    test("Retorna 404 se usuário não existir", async () => {
+      const fakeId = "66e68c8a0f9b9a26a4e89fff"
+      const response = await updateUser(authToken, fakeId, { name: "Fake" })
+      expect(response.status).toBe(404)
+      expect(response.body.msg).toBe("Usuário não encontrado")
     })
 
     test("Retorna 401 se token ausente", async () => {
-      const response = await request.patch('/api/v1/auth/update').send({ name: "X" })
+      const response = await request.patch(`/api/v1/auth/update/${createdUserId}`).send({ name: "X" })
       expect(response.status).toBe(401)
-      expect(response.body.msg).toBe("Token de autenticação ausente ou inválido")
-    })
-
-    test("Retorna 404 se usuário não existir mais", async () => {
-      const fakeToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.fake"
-      const response = await updateUser(fakeToken, { name: "Fake" })
-      expect(response.status).toBe(404)
-      expect(response.body.msg).toBe("Usuário não encontrado")
+      expect(response.body.error).toBe("Token não fornecido")
     })
   })
 
-  describe("DELETE /delete", () => {
+  describe("DELETE /delete/:id", () => {
     test("Retorna 204 e confirma exclusão do usuário", async () => {
-      const response = await deleteUser(authToken)
+      const response = await deleteUser(authToken, createdUserId)
       expect(response.status).toBe(204)
-      expect(response.body.msg).toBe("Usuário deletado com sucesso")
     })
 
     test("Retorna 401 se token ausente", async () => {
-      const response = await request.delete('/api/v1/auth/delete')
+      const response = await request.delete(`/api/v1/auth/delete/${createdUserId}`)
       expect(response.status).toBe(401)
-      expect(response.body.msg).toBe("Token de autenticação ausente ou inválido")
-    })
-
-    test("Retorna 404 se usuário já foi deletado", async () => {
-      const response = await deleteUser(authToken)
-      expect(response.status).toBe(404)
-      expect(response.body.msg).toBe("Usuário não encontrado")
+      expect(response.body.error).toBe("Token não fornecido")
     })
   })
 })

@@ -29,7 +29,7 @@ beforeAll(async () => {
 
 	const tryLogin = async (max = 5, delay = 200) => {
 		for (let i = 0; i < max; i++) {
-			const res = await request.post('/login').send(credentials);
+			const res = await request.post('/api/v1/auth/login').send(credentials);
 			if (res?.body?.token) return res.body.token;
 			await new Promise(r => setTimeout(r, delay));
 		}
