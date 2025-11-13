@@ -4,8 +4,7 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const mongoose = require('mongoose')
 
-const cadastroRouter = require('./routes/cadastroRoutes')
-const loginRouter = require('./routes/loginRoutes')
+const authRouter = require('./routes/authRoutes');
 const productRouter = require('./routes/productRoutes');
 
 const authenticate = require('./middlewares/auth');
@@ -22,8 +21,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-app.use('/cadastro', cadastroRouter)
-app.use('/login', loginRouter)
+app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/products',  productRouter);
 
 module.exports = app;
