@@ -1,0 +1,668 @@
+openapi: 3.0.3
+info:
+  title: RESTful Products API
+  description: |
+    Uma API RESTful desenvolvida em Node.js + Express para gerenciamento de usuários e produtos.
+    Inclui autenticação JWT, persistência em MongoDB e documentação interativa.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://example.com/terms
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Servidor de Desenvolvimento
+  - url: https://api.example.com/api/v1
+    description: Servidor de Produção
+
+tags:
+  - name: Authentication
+    description: Operações de autenticação e gerenciamento de usuários
+  - name: Products
+    description: Operações de gerenciamento de produtos
+
+paths:
+  # =============================================
+  # ROTAS DE AUTENTICAÇÃO
+  # =============================================
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Registrar novo usuário
+      operationId: registerUser
+      description: Cria um novo usuário no sistema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: "João Silva"
+                email:
+                  type: string
+                  format: email
+                  example: "joao@example.com"
+                password:
+                  type: string
+                  example: "secret123"
+      responses:
+        '201':
+          $ref: '#/components/responses/AuthCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Fazer login
+      operationId: loginUser
+      description: Autentica o usuário e retorna um token JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "joao@example.com"
+                password:
+                  type: string
+                  example: "secret123"
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/profile/{id}:
+    get:
+      tags:
+        - Authentication
+      summary: Obter perfil do usuário
+      operationId: getUserProfile
+      description: Retorna as informações de perfil de um usuário específico
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do usuário
+          schema:
+            type: string
+            example: "64f7c26a5c9e123abc456789"
+      responses:
+        '200':
+          $ref: '#/components/responses/UserSuccess'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/update/{id}:
+    patch:
+      tags:
+        - Authentication
+      summary: Atualizar usuário
+      operationId: updateUser
+      description: Atualiza dados de um usuário existente
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do usuário
+          schema:
+            type: string
+            example: "64f7c26a5c9e123abc456789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "João Atualizado"
+                email:
+                  type: string
+                  format: email
+                  example: "novoemail@example.com"
+      responses:
+        '200':
+          $ref: '#/components/responses/UserSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/delete/{id}:
+    delete:
+      tags:
+        - Authentication
+      summary: Excluir usuário
+      operationId: deleteUser
+      description: Remove um usuário do sistema
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do usuário
+          schema:
+            type: string
+            example: "64f7c26a5c9e123abc456789"
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # =============================================
+  # ROTAS DE PRODUTOS
+  # =============================================
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Listar produtos
+      operationId: listProducts
+      description: Lista todos os produtos cadastrados com paginação
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: "Página atual"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          description: "Número de itens por página"
+        - name: category
+          in: query
+          required: false
+          description: "Filtrar por categoria (ex: Periféricos)"
+          schema:
+            type: string
+            example: "Periféricos"
+        - name: minPrice
+          in: query
+          required: false
+          description: "Preço mínimo para filtro"
+          schema:
+            type: number
+            minimum: 0
+            example: 0
+        - name: maxPrice
+          in: query
+          required: false
+          description: "Preço máximo para filtro"
+          schema:
+            type: number
+            minimum: 0
+            example: 1000
+        - name: sort
+          in: query
+          required: false
+          description: "Ordenação por preço ou data"
+          schema:
+            type: string
+            enum:
+              - price_asc
+              - price_desc
+              - createdAt_asc
+              - createdAt_desc
+            example: "price_desc"
+      responses:
+        '200':
+          $ref: '#/components/responses/ProductList'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Products
+      summary: Criar produto
+      operationId: createProduct
+      description: Cria um novo produto (requer autenticação)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - price
+                - category
+              properties:
+                name:
+                  type: string
+                  example: "Teclado Mecânico Gamer"
+                description:
+                  type: string
+                  example: "Teclado RGB com switches azuis"
+                price:
+                  type: number
+                  format: float
+                  minimum: 0
+                  example: 299.90
+                category:
+                  type: string
+                  example: "Periféricos"
+      responses:
+        '201':
+          $ref: '#/components/responses/ProductCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Obter produto por ID
+      operationId: getProductById
+      description: Retorna os detalhes de um produto específico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do produto
+          schema:
+            type: string
+            example: "64f7c26a5c9e123abc456789"
+      responses:
+        '200':
+          $ref: '#/components/responses/ProductSuccess'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags:
+        - Products
+      summary: Atualizar produto
+      operationId: updateProduct
+      description: Atualiza um produto existente (requer autenticação)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do produto
+          schema:
+            type: string
+            example: "64f7c26a5c9e123abc456789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Notebook Dell Atualizado"
+                description:
+                  type: string
+                  example: "Descrição atualizada"
+                price:
+                  type: number
+                  format: float
+                  minimum: 0
+                  example: 4999.90
+                category:
+                  type: string
+                  example: "Eletrônicos"
+      responses:
+        '200':
+          $ref: '#/components/responses/ProductSuccess'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Products
+      summary: Excluir produto
+      operationId: deleteProduct
+      description: Remove um produto do banco de dados (requer autenticação)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do produto
+          schema:
+            type: string
+            example: "64f7c26a5c9e123abc456789"
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Cole aqui seu token JWT no formato:
+        `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+  responses:
+    BadRequest:
+      description: Dados inválidos na requisição
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid:
+              value:
+                success: false
+                message: "Dados inválidos"
+                details:
+                  field: "email"
+                  issue: "Formato inválido"
+    Unauthorized:
+      description: Requisição não autorizada (token faltando ou inválido)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            auth:
+              value:
+                success: false
+                message: "Token inválido ou expirado"
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                success: false
+                message: "Recurso não encontrado"
+    NoContent:
+      description: Operação realizada com sucesso (sem conteúdo)
+    InternalError:
+      description: Erro interno do servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            serverError:
+              value:
+                success: false
+                message: "Erro interno do servidor"
+    AuthSuccess:
+      description: Autenticação bem sucedida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AuthResponse'
+          examples:
+            success:
+              value:
+                success: true
+                token: "eyJhbGciOiJIUzI1NiIs..."
+                user:
+                  id: "64f7c26a5c9e123abc456789"
+                  name: "João Silva"
+                  email: "joao@example.com"
+                  role: "user"
+    AuthCreated:
+      description: Usuário criado com token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AuthResponse'
+    UserSuccess:
+      description: Retorna dados do usuário
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                $ref: '#/components/schemas/User'
+    ProductCreated:
+      description: Produto criado com sucesso
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                $ref: '#/components/schemas/Product'
+    ProductSuccess:
+      description: Retorna um produto
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                $ref: '#/components/schemas/Product'
+    ProductList:
+      description: Lista de produtos com metadados de paginação
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+              meta:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 10
+                  total:
+                    type: integer
+                    example: 42
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID do usuário (MongoDB ObjectId)
+          example: "64f7c26a5c9e123abc456789"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "João Silva"
+        email:
+          type: string
+          format: email
+          minLength: 5
+          example: "joao@example.com"
+        role:
+          type: string
+          enum: [user, admin]
+          example: "user"
+      required:
+        - id
+        - name
+        - email
+        - role
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "64f7c26a5c9e123abc456789"
+        name:
+          type: string
+          minLength: 3
+          maxLength: 150
+          example: "Notebook Dell Inspiron"
+        description:
+          type: string
+          minLength: 10
+          example: "16GB RAM, 512GB SSD"
+        price:
+          type: number
+          format: float
+          minimum: 0
+          example: 4599.90
+        category:
+          type: string
+          minLength: 2
+          example: "Eletrônicos"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-11-10T12:30:00.000Z"
+      required:
+        - id
+        - name
+        - description
+        - price
+        - category
+        - createdAt
+
+    NewProduct:
+      type: object
+      required: [name, description, price, category]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          example: "Teclado Mecânico Gamer"
+        description:
+          type: string
+          minLength: 10
+          example: "Teclado RGB com switches azuis"
+        price:
+          type: number
+          minimum: 0
+          example: 299.90
+        category:
+          type: string
+          example: "Periféricos"
+
+    UpdateProduct:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+        description:
+          type: string
+          minLength: 10
+        price:
+          type: number
+          minimum: 0
+        category:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIs..."
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - success
+        - token
+        - user
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Descrição do erro"
+        details:
+          type: object

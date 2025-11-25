@@ -6,8 +6,8 @@ const mongoose = require('mongoose')
 
 const authRouter = require('./routes/authRoutes');
 const productRouter = require('./routes/productRoutes');
+const apiDocsRouter = require('./routes/apiDocs');
 
-const authenticate = require('./middlewares/auth');
 
 const app = express();
 
@@ -21,6 +21,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
+app.use('/api-docs', apiDocsRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/products',  productRouter);
 
