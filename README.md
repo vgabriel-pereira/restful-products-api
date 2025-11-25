@@ -74,16 +74,10 @@ Edite os valores conforme o seu ambiente.
 npm run dev
 ```
 
-### Ambiente de produção
-
-```bash
-npm start
-```
-
 ## 🧪 Testes
 
 ```bash
-npm test
+npm run test
 ```
 
 ## 🗂 Estrutura do Projeto
@@ -140,13 +134,13 @@ Authorization: Bearer <token>
   Retorna detalhes de um produto.
 
 - **POST** `/api/v1/products`  
-  Cria um novo produto (apenas admin).
+  Cria um novo produto (apenas usuario logado).
 
 - **PUT** `/api/v1/products/:id`  
-  Atualiza um produto (apenas admin).
+  Atualiza um produto (apenas admin e dono do produto).
 
 - **DELETE** `/api/v1/products/:id`  
-  Remove um produto (apenas admin).
+  Remove um produto (apenas admin e dono do produto).
 
 ### 📘 Documentação (`/api-docs`)
 
